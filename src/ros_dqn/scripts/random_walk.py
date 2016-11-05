@@ -1,16 +1,12 @@
 #!/usr/bin/env python
-
-from susanoh.environments.gazebo_action import GazeboAction
 import rospy
-from geometry_msgs.msg import Twist
+from std_msgs.msg import Int16
 import numpy as np
 
 rospy.init_node("random_walk")
-target_name = ""
-topic_name_vel = target_name+"/mobile_base/commands/velocity"
-pub = rospy.Publisher(topic_name_vel, Twist, queue_size=10)
-ga = GazeboAction()
+pub = rospy.Publisher("rand_act", Int16, queue_size=10)
 rate = rospy.Rate(3)
 while not rospy.is_shutdown():
-    ga.control_action(np.random.randint(5))
+    act = np.random.randint(5)
+    pub.publish(act)
     rate.sleep()
