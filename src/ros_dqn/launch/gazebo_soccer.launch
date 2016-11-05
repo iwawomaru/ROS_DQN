@@ -25,5 +25,9 @@
   </node>
 
   <node pkg="ros_dqn" name="random_walk" type="random_walk.py" />
+  <node pkg="ros_dqn" name="dqn_walk" type="dqn_walk.py" />
+  <node pkg="ros_dqn" name="suppressor" type="suppressor.py" />
+  <node pkg="ros_dqn" name="accumulator" type="accumulator.py" />
+
 
 </launch>

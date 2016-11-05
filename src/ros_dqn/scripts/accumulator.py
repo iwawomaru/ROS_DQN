@@ -1,5 +1,4 @@
-#!/usr/bin/env python                                                                 
-
+#!/usr/bin/env python
 import rospy
 from std_msgs.msg import Int16
 
@@ -12,25 +11,46 @@ rospy.init_node(topic_name)
 target_name = ""
 topic_name_vel = target_name+"/mobile_base/commands/velocity"
 
-
-
 ga = GazeboAction()
 
 class Accumulator(object):
     def __init__(self):
-        self.accumulators = [0, 0, 0, 0, 0]
+
+        self.def_accum_vars = {"rand":[0, 0, 0, 0, 0], "dqn":[0, 0, 0, 0, 0], 
+                               "suppress":[0]}
+        self.accumulators = {key:self.def_accum_vars[key] for key 
+                             in self.def_accum_vars}
+        self.lock = {"rand":False, "dqn":False, "suppress":False}
+        self.evidence_scale = {"rand":0.5, "dqn":0.1, "suppress":0.1}
+        
         self.act_id = 0
 
-    def __call__(self, message):
-        self.accumulators[message.data] += 0.5
-        rospy.loginfo("Message : %s", str(message.data))
-        if self.accumulators[message.data] >= 1.0:
-            self.accumulators = [0, 0, 0, 0, 0]
-            self.act_id = message.data
+    def accum_renew(self, aid, key):
+        if self.lock[key]: return
+        self.accumulators[key][aid] += self.evidence_scale[key]
+        if self.accumulators[key][aid] >= 1.0:
+            self.accumulators[key] = self.def_accum_vars[key]
+            self.act_id = aid
+            return True
+        return False
+
+    def call_back_rand_walk(self, message):
+        if self.accum_renew(message.data, "rand"):
+            pass
+
+    def call_back_dqn(self, message):
+        if self.accum_renew(message.data, "dqn"):
+            self.lock["rand"] = True
+
+    def call_back_suppress(self, message):
+        if self.accum_renew(0, "suppress"):
+            self.lock["rand"] = False
+            self.lock["dqn"] = False
             
 accumulator = Accumulator()
-sub = rospy.Subscriber("rand_act", Int16, accumulator)
-
+sub_rand_walk = rospy.Subscriber("rand_act", Int16, accumulator.call_back_rand_walk)
+sub_dqn_walk = rospy.Subscriber("dqn_act", Int16, accumulator.call_back_dqn)
+sub_suppress = rospy.Subscriber("suppress_act", Int16, accumulator.call_back_suppress)
 rate = rospy.Rate(3)
 while not rospy.is_shutdown():
     ga.control_action(accumulator.act_id)
